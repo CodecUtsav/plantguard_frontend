@@ -62,7 +62,7 @@ export const Pricing: React.FC = () => {
 
     setIsProcessing(true);
     try {
-      const res = await fetch("http://localhost:8000/create-order", {
+      const res = await fetch(import.meta.env.VITE_API_URL + "/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount, credits }),
@@ -81,7 +81,7 @@ export const Pricing: React.FC = () => {
         handler: async (response: any) => {
           try {
             const verifyRes = await fetch(
-              "http://localhost:8000/verify-payment",
+              import.meta.env.VITE_API_URL + "/verify-payment",
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

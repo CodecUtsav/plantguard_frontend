@@ -65,6 +65,7 @@ export const Pricing: React.FC = () => {
       const res = await fetch(import.meta.env.VITE_API_URL + "/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ amount, credits }),
       });
 
@@ -84,6 +85,7 @@ export const Pricing: React.FC = () => {
               import.meta.env.VITE_API_URL + "/verify-payment",
               {
                 method: "POST",
+                credentials: "include",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ...response, credits }),
               },

@@ -1,0 +1,7 @@
+{
+  "name": "PlantGuard AI",
+  "description": "A full-stack plant disease detection system using Gemini AI to identify plant diseases from leaf images.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

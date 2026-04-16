@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion"; // Note: Changed to framer-motion as it's the standard package name
+import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
   Coins,
@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { useStore } from "../store/useStore";
 
-// Plan configuration defined outside to prevent re-renders
 const PLANS = [
   {
     name: "Starter",
@@ -19,7 +18,6 @@ const PLANS = [
     price: "₹399",
     amount: 399,
     icon: Zap,
-    color: "emerald",
     colorClass: "text-emerald-600",
     bgClass: "bg-emerald-100",
   },
@@ -29,7 +27,6 @@ const PLANS = [
     price: "₹1299",
     amount: 1299,
     icon: Sparkles,
-    color: "blue",
     colorClass: "text-blue-600",
     bgClass: "bg-blue-100",
     popular: true,
@@ -40,7 +37,6 @@ const PLANS = [
     price: "₹3499",
     amount: 3499,
     icon: Shield,
-    color: "purple",
     colorClass: "text-purple-600",
     bgClass: "bg-purple-100",
   },
@@ -54,71 +50,91 @@ export const Pricing: React.FC = () => {
   const buyCredits = async (amount: number, credits: number) => {
     if (isProcessing) return;
 
-    // Ensure Razorpay script is loaded
+    // 1. Check if user is logged in
+    if (!user) {
+      alert("Please login to purchase credits");
+      return;
+    }
+
     if (!(window as any).Razorpay) {
-      alert("Razorpay SDK failed to load. Are you online?");
+      alert("Razorpay SDK failed to load. Please check your connection.");
       return;
     }
 
     setIsProcessing(true);
     try {
-      const res = await fetch(import.meta.env.VITE_API_URL + "/create-order", {
+      // 2. Create Order on Backend
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ amount, credits }),
+        credentials: "include", // CRITICAL: Sends the JWT cookie
+        body: JSON.stringify({ amount }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Order creation failed");
+      if (!data.success)
+        throw new Error(data.message || "Order creation failed");
 
+      // 3. Initialize Razorpay Checkout
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: data.order.amount,
         currency: data.order.currency,
         name: "PlantGuard AI",
-        description: `Purchase ${credits} Credits`,
+        description: `Adding ${credits} Credits to your account`,
         order_id: data.order.id,
         handler: async (response: any) => {
           try {
+            // 4. Verify Payment on Backend
             const verifyRes = await fetch(
-              import.meta.env.VITE_API_URL + "/verify-payment",
+              `${import.meta.env.VITE_API_URL}/verify-payment`,
               {
                 method: "POST",
-                credentials: "include",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...response, credits }),
+                credentials: "include",
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  credits: credits, // Pass the credits to increment in DB
+                }),
               },
             );
+
             const verifyData = await verifyRes.json();
 
-            if (verifyRes.ok) {
-              if (user)
-                setUser({
-                  ...user,
-                  credits: user.credits + verifyData.credits,
-                });
+            if (verifyData.success) {
+              // Update local state with new credits
+              setUser({
+                ...user,
+                credits: (user.credits || 0) + credits,
+              });
               setShowPricing(false);
-              alert("Payment successful!");
+              alert("Payment Successful! Credits added to your account.");
             } else {
-              alert("Verification failed.");
+              alert(verifyData.message || "Payment verification failed.");
             }
           } catch (e) {
-            alert("Error verifying payment.");
+            alert("An error occurred during verification.");
           } finally {
             setIsProcessing(false);
           }
         },
-        modal: { ondismiss: () => setIsProcessing(false) },
-        prefill: { name: user?.name, email: user?.email },
+        modal: {
+          ondismiss: () => setIsProcessing(false),
+        },
+        prefill: {
+          name: user.name,
+          email: user.email,
+        },
         theme: { color: "#10B981" },
       };
 
       const rzp = new (window as any).Razorpay(options);
       rzp.open();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Payment error:", err);
-      alert(err instanceof Error ? err.message : "Network error.");
+      alert(err.message || "Network error.");
       setIsProcessing(false);
     }
   };
@@ -132,7 +148,7 @@ export const Pricing: React.FC = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => !isProcessing && setShowPricing(false)}
-            className="absolute inset-0 bg-[#065F46]/30 backdrop-blur-md"
+            className="absolute inset-0 bg-[#065F46]/40 backdrop-blur-md"
           />
 
           <motion.div
@@ -142,14 +158,14 @@ export const Pricing: React.FC = () => {
             className="relative w-full max-w-5xl bg-white rounded-[40px] shadow-2xl overflow-hidden border border-emerald-100"
           >
             <div className="p-8 md:p-12">
-              {/* Header */}
               <div className="flex items-start justify-between mb-10">
                 <div>
                   <h2 className="text-3xl font-black text-slate-900 tracking-tight">
                     Boost Your Diagnostics
                   </h2>
                   <p className="text-slate-500 font-medium mt-2">
-                    Choose a credit pack to continue healing your garden.
+                    Select a plan to continue identifying plant diseases with
+                    AI.
                   </p>
                 </div>
                 <button
@@ -161,7 +177,6 @@ export const Pricing: React.FC = () => {
                 </button>
               </div>
 
-              {/* Pricing Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {PLANS.map((plan) => (
                   <PricingCard
@@ -173,7 +188,6 @@ export const Pricing: React.FC = () => {
                 ))}
               </div>
 
-              {/* Footer / Balance */}
               <div className="mt-10 p-6 bg-slate-50 rounded-3xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center">
@@ -188,7 +202,7 @@ export const Pricing: React.FC = () => {
                       <span className="text-emerald-600 font-bold">
                         {user?.credits || 0}
                       </span>{" "}
-                      credits remaining
+                      credits available
                     </p>
                   </div>
                 </div>
@@ -197,7 +211,7 @@ export const Pricing: React.FC = () => {
                     setShowPricing(false);
                     setShowSupport(true);
                   }}
-                  className="text-sm font-bold text-emerald-700 hover:text-emerald-800 transition-colors"
+                  className="text-sm font-bold text-emerald-700 hover:text-emerald-800"
                 >
                   Need help? Contact Support
                 </button>
@@ -210,15 +224,16 @@ export const Pricing: React.FC = () => {
   );
 };
 
-// Sub-component for better organization
-const PricingCard = ({
+interface PricingCardProps {
+  plan: any;
+  onSelect: (amount: number, credits: number) => void;
+  disabled: boolean;
+}
+
+const PricingCard: React.FC<PricingCardProps> = ({
   plan,
   onSelect,
   disabled,
-}: {
-  plan: any;
-  onSelect: any;
-  disabled: boolean;
 }) => (
   <div
     className={`relative p-8 rounded-3xl border-2 transition-all flex flex-col ${
@@ -228,7 +243,7 @@ const PricingCard = ({
     }`}
   >
     {plan.popular && (
-      <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[10px] font-black px-4 py-1 rounded-full uppercase tracking-widest shadow-lg shadow-emerald-500/20">
+      <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[10px] font-black px-4 py-1 rounded-full uppercase tracking-widest">
         Best Value
       </span>
     )}
@@ -267,12 +282,11 @@ const PricingCard = ({
       disabled={disabled}
       className={`w-full mt-8 py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${
         plan.popular
-          ? "bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20"
+          ? "bg-emerald-500 text-white hover:bg-emerald-600"
           : "bg-slate-900 text-white hover:bg-slate-800"
       } disabled:opacity-50 disabled:cursor-not-allowed`}
     >
-      {disabled && <Loader2 className="w-4 h-4 animate-spin" />}
-      {disabled ? "Processing..." : "Buy Now"}
+      {disabled ? <Loader2 className="w-4 h-4 animate-spin" /> : "Buy Now"}
     </button>
   </div>
 );

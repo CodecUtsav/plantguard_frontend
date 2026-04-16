@@ -39,12 +39,15 @@ export const ContactSupport: React.FC = () => {
     setErrorMessage(null);
 
     try {
-      const res = await fetch("/api/support", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ ...formData, userId: user?.id }),
-      });
+      const res = await fetch(
+        import.meta.env.VITE_API_URL + "/api/support/submit",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ ...formData, userId: user?.id }),
+        },
+      );
 
       if (res.ok) {
         setIsSuccess(true);

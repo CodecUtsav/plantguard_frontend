@@ -42,6 +42,7 @@ export const ContactSupport: React.FC = () => {
       const res = await fetch("/api/support", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ ...formData, userId: user?.id }),
       });
 

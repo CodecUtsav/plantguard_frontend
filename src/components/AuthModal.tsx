@@ -48,10 +48,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     setAuthError(null);
 
     try {
-      const endpoint =
-        authMode === "login" ? "/api/auth/login" : "/api/auth/register";
-      const res = await fetch(endpoint, {
+      const endpoint = authMode === "login" ? "/login" : "/register";
+      const res = await fetch(import.meta.env.VITE_API_URL + endpoint, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(authForm),
       });
